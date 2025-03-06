@@ -18,6 +18,7 @@
 #define ZERO_CROSS_PIN P0_0  // Alias for P0.0
 #define ZERO_CROSS_PIN_PHASOR P0_1
 #define REF_peak P2_2
+#define PHA_peak P2_3
 
 unsigned int period_ticks = 0;
 unsigned int quarter_period_ticks = 0;
@@ -202,9 +203,8 @@ float Volts_at_Pin(unsigned char pin)
 }
 
 /*void InitTimer0(void){
-    //TMOD &= 0xF0;  // Clear Timer 0 mode bits
-     CKCON0 &= ~0x08; 
-    TMOD&=0B_1111_0000; // Clear all the configuration bits of timer 0, but leave the bits of timer 1 unchanged
+ 
+    TMOD&=0B_1111_1100; // Clear all the configuration bits of timer 0, but leave the bits of timer 1 unchanged
     TMOD|=0B_0000_0001; // Configure timer 0, but do nothing to timer 1
     TR0 = 0;       // Ensure Timer 0 is stopped initially
 }*/
@@ -287,50 +287,72 @@ void WaitQuarterPeriod(unsigned int period)
     TR0 = 0;  // Stop Timer 0
 }
 
-/*
+
 unsigned int phaseDif()
 {
     
     TR0 = 0;  // Stop Timer 0
     TH0 = 0; TL0 = 0; // Reset Timer 0
-
-    while (ZERO_CROSS_PIN == 1); // Wait for reference signal (P0.0) to go LOW
-    while (ZERO_CROSS_PIN == 0); // Wait for reference signal to go HIGH
+	overflow_count = 0;
+	
+    while (ZERO_CROSS_PIN == 1){ // Wait for reference signal (P0.0) to go LOW
+    	if(TF0){
+    		TF0 = 0;
+    		overflow_count++;
+    	}
+    }
+    while (ZERO_CROSS_PIN == 0){ // Wait for reference signal to go HIGH
+    	if(TF0){
+    		TF0 = 0;
+    		overflow_count++;
+    	}
+    }
 
     TR0 = 1;  // Start Timer 0
-
-    while (ZERO_CROSS_PIN_PHASOR == 1); // Wait for phasor (P0.1) to go LOW
-    while (ZERO_CROSS_PIN_PHASOR == 0); // Wait for phasor (P0.1) to go HIGH
+	overflow_count = 0;
+	
+	while (ZERO_CROSS_PIN_PHASOR == 1){ // Wait for phasor (P0.1) to go LOW
+    	if(TF0){
+    		TF0 = 0;
+    		overflow_count++;
+    	}
+    }
+    while (ZERO_CROSS_PIN_PHASOR == 0){ // Wait for phasor (P0.1) to go HIGH
+    	if(TF0){
+    		TF0 = 0;
+    		overflow_count++;
+    	}
+    }
 
     TR0 = 0;  // Stop Timer 0
 
-    return (TH0 << 8) | TL0; // Return 16-bit timer value
+    return overflow_count*0x10000L+TH0*0x100+TL0; // Return 16-bit timer value
 }
 float calculatePhaseShift(unsigned int period_ticks, unsigned int delta_ticks) {
-    float time_per_tick = 12.0 / SYSCLK;  // Time per tick in seconds
-    float period_time = period_ticks * time_per_tick;  // Convert period to seconds
-    float delta_time = delta_ticks * time_per_tick;    // Convert delta t to seconds
+    //float time_per_tick = 12.0 / SYSCLK;  // Time per tick in seconds
+    //float period_time = (float)period_ticks * time_per_tick;  // Convert period to seconds
+    //float delta_time = delta_ticks * time_per_tick;    // Convert delta t to seconds
     
     // Compute phase shift in degrees
-    float phase_shift = (delta_time / period_time) * 360.0;
+    //float phase_shift = (delta_time / period_time) * 360.0;
+    float phase_shift = ((float)period_ticks / (float)delta_ticks) * 360.0;
     
     return phase_shift;  // Return phase shift in degrees
-}*/
+}
 
 
 void main (void)
 {
 
-	unsigned long F;
-	float v[4];
+	unsigned long T;
+	float v[2];
 	float period;
 	float frequency;
 	
-	//unsigned int ADC_reading;
-	//float period_seconds;
-	//unsigned int delta_ticks;
-	//float phase_shift;
+	unsigned int delta_ticks;
+	float phase_shift;
 	float peakRMS;
+	float phaRMS;
 	
 
     waitms(500); // Give PuTTy a chance to start before sending
@@ -352,7 +374,7 @@ void main (void)
 	{
 	    // Read 14-bit value from the pins configured as analog inputs
 		v[0] = Volts_at_Pin(QFP32_MUX_P2_2);
-		//v[1] = Volts_at_Pin(QFP32_MUX_P2_3);
+		v[1] = Volts_at_Pin(QFP32_MUX_P2_3);
 		//v[2] = Volts_at_Pin(QFP32_MUX_P2_4);
 		//v[3] = Volts_at_Pin(QFP32_MUX_P2_5);
 		//printf ("V@P2.2=%7.5fV, V@P2.3=%7.5fV, V@P2.4=%7.5fV, V@P2.5=%7.5fV\r\n", v[0], v[1], v[2], v[3]);
@@ -364,18 +386,41 @@ void main (void)
 			overflow_count=0;
 			TF0=0;
 			
-			while (ZERO_CROSS_PIN == 1);
-			while (ZERO_CROSS_PIN == 0);
+			while (ZERO_CROSS_PIN == 1){
+				if(TF0){
+    				TF0 = 0;
+    				overflow_count++;
+    			}
+    		}
+			while (ZERO_CROSS_PIN == 0){
+				if(TF0){
+    				TF0 = 0;
+    				overflow_count++;
+    			}
+    		}
 			TR0=1; // Start Timer/Counter 0
-			while (ZERO_CROSS_PIN==1);
+			overflow_count=0;
+			while (ZERO_CROSS_PIN==1){
+				if(TF0){
+    				TF0 = 0;
+    				overflow_count++;
+    			}
+    		}
+    		/*while (ZERO_CROSS_PIN == 0){
+				if(TF0){
+    				TF0 = 0;
+    				overflow_count++;
+    			}
+    		}*/
 			TR0=0; // Stop Timer/Counter 0
-			F=overflow_count*0x10000L+TH0*0x100L+TL0;
+			T=2.0*(overflow_count*0x10000L+TH0*0x100L+TL0);
+			printf("\rperiod ticks: %lu \n", T);
 			
-			frequency = ((float)SYSCLK / (12.0 * (float)F))/2.0;
+			frequency = ((float)SYSCLK / (12.0 * (float)T));
 		
 			printf("\rf=%lfHz\n", frequency);
 		
-			period = 1.0 / frequency;
+			period = 1.0 / frequency; 
 			
 			printf("\rT=%lfs\n", period);
 			
@@ -385,14 +430,22 @@ void main (void)
 			while (ZERO_CROSS_PIN == 0);
 			WaitQuarterPeriod(period);
 		
-			peakRMS = v[0]/1.4142;//Volts_at_Pin(REF_peak); //p2.2
-			printf("\nVrms(ref): %f v\n", peakRMS);
+			peakRMS = Volts_at_Pin(QFP32_MUX_P2_2)/1.4142;//Volts_at_Pin(REF_peak); //p2.2
+			printf("\nVrms(REF): %f V\n", peakRMS);
 			
 			
+			while (ZERO_CROSS_PIN_PHASOR == 1);
+			while (ZERO_CROSS_PIN_PHASOR == 0);
+			WaitQuarterPeriod(period);
 			
-			/*delta_ticks = phaseDif();
-			phase_shift = calculatePhaseShift(period, delta_ticks);
-			printf("\nphase shift: %f °\n", phase_shift);*/
+			phaRMS = Volts_at_Pin(QFP32_MUX_P2_3)/1.4142;//Volts_at_Pin(PHA_peak); //p2.3
+			printf("\nVrms(PHA): %f V\n", phaRMS);
+			
+			delta_ticks = phaseDif();
+			printf("\r delta ticks: %u \n",delta_ticks);
+			printf("\rperiod ticks: %lu \n", T);
+			phase_shift = calculatePhaseShift(T, (float)delta_ticks);
+			printf("\nphase shift: %f °\n", phase_shift);
 		
 		
 		waitms(500);
