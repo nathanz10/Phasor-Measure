@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <EFM8LB1.h>
+#include <math.h>
 
 // ~C51~  
 
@@ -20,6 +21,7 @@
 
 unsigned int period_ticks = 0;
 unsigned int quarter_period_ticks = 0;
+unsigned char overflow_count;
 
 char _c51_external_startup (void)
 {
@@ -234,9 +236,9 @@ void InitTimer0(void)
     return (TH0 << 8) | TL0; // Return 16-bit timer value
 }*/
 
-unsigned int halfPeriod(){
+/*unsigned int halfPeriod(){
 
-	printf("1\n");
+	//printf("1\n");
 	
 	TR0=0; // Stop timer 0
 	
@@ -255,10 +257,10 @@ unsigned int halfPeriod(){
 	
 	//printf("3\n");
 	TR0=1; // Start timing
-	printf("3\n");
+	//printf("3\n");
 	while (ZERO_CROSS_PIN==1); // Wait for the signal to be zero
 	
-	printf("4\n");
+	//printf("4\n");
 	TR0=0; // Stop timer 0
 	// [TH0,TL0] is half the period in multiples of 12/CLK, so:
 	
@@ -268,7 +270,7 @@ unsigned int halfPeriod(){
 
 	return(TH0*0x100+TL0)*2;
 	
-}
+}*/
 
 
 void WaitQuarterPeriod(unsigned int period)
@@ -318,9 +320,11 @@ float calculatePhaseShift(unsigned int period_ticks, unsigned int delta_ticks) {
 
 void main (void)
 {
+
+	unsigned long F;
 	float v[4];
-	unsigned int period;
-	unsigned int frequency;
+	//unsigned int period;
+	float frequency;
 	//float period_seconds;
 	//unsigned int delta_ticks;
 	//float phase_shift;
@@ -349,32 +353,38 @@ void main (void)
 		v[1] = Volts_at_Pin(QFP32_MUX_P2_3);
 		v[2] = Volts_at_Pin(QFP32_MUX_P2_4);
 		v[3] = Volts_at_Pin(QFP32_MUX_P2_5);
-		printf ("V@P2.2=%7.5fV, V@P2.3=%7.5fV, V@P2.4=%7.5fV, V@P2.5=%7.5fV\r", v[0], v[1], v[2], v[3]);
-		//printf ("V@P2.2=%7.5fV\r",v[0]);
-		
-		/*period = halfPeriod();
-		period_seconds = (float)period * (12.0 / SYSCLK);
-		frequency = 1.0 / period_seconds;*/
+		printf ("V@P2.2=%7.5fV, V@P2.3=%7.5fV, V@P2.4=%7.5fV, V@P2.5=%7.5fV\r\n", v[0], v[1], v[2], v[3]);
+
 		
 		
-		//while (ZERO_CROSS_PIN == 1);
-		//while (ZERO_CROSS_PIN == 0);
-		
+			TL0=0;
+			TH0=0;
+			overflow_count=0;
+			TF0=0;
 			
-			printf("Test\n");
-			waitms(500);
-			printf("Test works\n");
-		
-		
-			period = halfPeriod();
-			//period_seconds = (float)period * (12.0 / SYSCLK);
-			//frequency = 1.0 / period_seconds;
-			frequency = (SYSCLK) / (12.0 * (float)period);
+			while (ZERO_CROSS_PIN == 1);
+			while (ZERO_CROSS_PIN == 0);
+			TR0=1; // Start Timer/Counter 0
+			while (ZERO_CROSS_PIN==1);
+			TR0=0; // Stop Timer/Counter 0
+			F=overflow_count*0x10000L+TH0*0x100L+TL0;
 			
-			printf("\nperiod: %f\n", (float)period);
-			printf("\nfrequency: %f hz\n", frequency);
+			//frequency = 1.0/((float)F*(12/SYSCLK));
+			frequency = ((float)SYSCLK / (12.0 * (float)F))/2.0;
+
 			
-			WaitQuarterPeriod(period);
+			printf("\rf=%lfHz\n", frequency);
+		
+
+
+			
+			
+			
+			
+			
+			
+			
+			//WaitQuarterPeriod(period);
 			
 			ADC_at_Pin(REF_peak); //p2.2
 			peak = Volts_at_Pin(REF_peak); //p2.2
