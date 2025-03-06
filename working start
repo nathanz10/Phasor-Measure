@@ -323,12 +323,14 @@ void main (void)
 
 	unsigned long F;
 	float v[4];
-	//unsigned int period;
+	float period;
 	float frequency;
+	
+	//unsigned int ADC_reading;
 	//float period_seconds;
 	//unsigned int delta_ticks;
 	//float phase_shift;
-	float peak;
+	float peakRMS;
 	
 
     waitms(500); // Give PuTTy a chance to start before sending
@@ -350,10 +352,10 @@ void main (void)
 	{
 	    // Read 14-bit value from the pins configured as analog inputs
 		v[0] = Volts_at_Pin(QFP32_MUX_P2_2);
-		v[1] = Volts_at_Pin(QFP32_MUX_P2_3);
-		v[2] = Volts_at_Pin(QFP32_MUX_P2_4);
-		v[3] = Volts_at_Pin(QFP32_MUX_P2_5);
-		printf ("V@P2.2=%7.5fV, V@P2.3=%7.5fV, V@P2.4=%7.5fV, V@P2.5=%7.5fV\r\n", v[0], v[1], v[2], v[3]);
+		//v[1] = Volts_at_Pin(QFP32_MUX_P2_3);
+		//v[2] = Volts_at_Pin(QFP32_MUX_P2_4);
+		//v[3] = Volts_at_Pin(QFP32_MUX_P2_5);
+		//printf ("V@P2.2=%7.5fV, V@P2.3=%7.5fV, V@P2.4=%7.5fV, V@P2.5=%7.5fV\r\n", v[0], v[1], v[2], v[3]);
 
 		
 		
@@ -369,26 +371,24 @@ void main (void)
 			TR0=0; // Stop Timer/Counter 0
 			F=overflow_count*0x10000L+TH0*0x100L+TL0;
 			
-			//frequency = 1.0/((float)F*(12/SYSCLK));
 			frequency = ((float)SYSCLK / (12.0 * (float)F))/2.0;
-
-			
+		
 			printf("\rf=%lfHz\n", frequency);
 		
-
-
+			period = 1.0 / frequency;
+			
+			printf("\rT=%lfs\n", period);
 			
 			
 			
+			while (ZERO_CROSS_PIN == 1);
+			while (ZERO_CROSS_PIN == 0);
+			WaitQuarterPeriod(period);
+		
+			peakRMS = v[0]/1.4142;//Volts_at_Pin(REF_peak); //p2.2
+			printf("\nVrms(ref): %f v\n", peakRMS);
 			
 			
-			
-			
-			//WaitQuarterPeriod(period);
-			
-			ADC_at_Pin(REF_peak); //p2.2
-			peak = Volts_at_Pin(REF_peak); //p2.2
-			printf("\npeak (ref): %f v\n", peak);
 			
 			/*delta_ticks = phaseDif();
 			phase_shift = calculatePhaseShift(period, delta_ticks);
