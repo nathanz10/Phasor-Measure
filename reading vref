@@ -364,7 +364,7 @@ void InitTimer0(void)
 	
 }*/
 
-
+/*
 void WaitQuarterPeriod(unsigned int period)
 {
     unsigned int delay_ticks = period / 4;
@@ -377,7 +377,7 @@ void WaitQuarterPeriod(unsigned int period)
     while (((TH0 << 8) | TL0) < delay_ticks);  // Wait for Period/4
 
     TR0 = 0;  // Stop Timer 0
-}
+}*/
 
 
 /*void WaitQuarterPeriod(unsigned int period)
@@ -544,7 +544,7 @@ void main (void)
 	//unsigned int delta_ticks;
 	float phase_shift;
 	float peakRMS;
-	//float phaRMS;
+	float phaRMS;
 	
 
     waitms(500); // Give PuTTy a chance to start before sending
@@ -635,15 +635,15 @@ void main (void)
 			
 			waitms(10);
 			
-			/*while (ZERO_CROSS_PIN_PHASOR == 1);
+			while (ZERO_CROSS_PIN_PHASOR == 1);
 			while (ZERO_CROSS_PIN_PHASOR == 0);
-			WaitQuarterPeriod(period);
+			waitms((int)(period*250.0));
 			
 			phaRMS = Volts_at_Pin(QFP32_MUX_P2_3)/1.4142;//Volts_at_Pin(PHA_peak); //p2.3
 			printf("\nVrms(PHA): %f V\n", phaRMS);
 			
 			sprintf(buffer, "%.3fV  (rms)", phaRMS);
-			LCDprint(buffer, 2, 8);*/
+			LCDprint(buffer, 2, 8);
 			
 			
 			
