@@ -200,13 +200,13 @@ float Volts_at_Pin(unsigned char pin)
 }
 
 void InitTimer0(void){
-    TMOD &= 0xF0;  // Clear Timer 0 mode bits
-    TMOD |= 0x01;  // Set Timer 0 to 16-bit mode
-    CKCON0 |= 0x08; // Use SYSCLK for Timer 0
+    //TMOD &= 0xF0;  // Clear Timer 0 mode bits
+    TMOD&=0B_1111_0000; // Clear all the configuration bits of timer 0, but leave the bits of timer 1 unchanged
+    TMOD|=0B_0000_0001; // Configure timer 0, but do nothing to timer 1
     TR0 = 0;       // Ensure Timer 0 is stopped initially
 }
 
-unsigned int measurePeriod(){
+/*unsigned int measurePeriod(){
     TR0 = 0;  // Stop Timer 0
     TH0 = 0; TL0 = 0; // Reset Timer 0
 
@@ -220,7 +220,41 @@ unsigned int measurePeriod(){
     TR0 = 0;  // Stop Timer 0
 
     return (TH0 << 8) | TL0; // Return 16-bit timer value
+}*/
+
+unsigned int halfPeriod(){
+
+	printf("1\n");
+	
+	TR0=0; // Stop timer 0
+	
+	//printf("SFRPAGE before TMOD: %X\n", SFRPAGE);
+
+	//TMOD=0B_0000_0001; // Set timer 0 as 16-bit timer
+	//printf("12\n");
+	TH0=0; TL0=0; // Reset the timer
+	//printf("13\n");
+	
+	//printf("2\n");
+	while (ZERO_CROSS_PIN==1); // Wait for the signal to be zero
+	while (ZERO_CROSS_PIN==0); // Wait for the signal to be one
+	
+	//printf("3\n");
+	TR0=1; // Start timing
+	while (ZERO_CROSS_PIN==1); // Wait for the signal to be zero
+	
+	//printf("4\n");
+	TR0=0; // Stop timer 0
+	// [TH0,TL0] is half the period in multiples of 12/CLK, so:
+	
+	//printf("Measured half-period: %u\n", (TH0 * 0x100 + TL0) * 2);
+	//printf("Half-Period: %u ticks, Frequency: %.2f Hz\n", (TH0 * 0x100 + TL0) * 2, (float)SYSCLK / (((TH0 * 0x100 + TL0) * 2) * 24));
+
+
+	return(TH0*0x100+TL0)*2;
+	
 }
+
 
 void WaitQuarterPeriod(unsigned int period)
 {
@@ -236,7 +270,7 @@ void WaitQuarterPeriod(unsigned int period)
     TR0 = 0;  // Stop Timer 0
 }
 
-
+/*
 unsigned int phaseDif()
 {
     
@@ -264,18 +298,19 @@ float calculatePhaseShift(unsigned int period_ticks, unsigned int delta_ticks) {
     float phase_shift = (delta_time / period_time) * 360.0;
     
     return phase_shift;  // Return phase shift in degrees
-}
+}*/
 
 
 void main (void)
 {
 	float v[4];
-	/*unsigned int period;
+	unsigned int period;
 	unsigned int frequency;
-	unsigned int delta_ticks;
-	float phase_shift;
+	//float period_seconds;
+	//unsigned int delta_ticks;
+	//float phase_shift;
 	float peak;
-	float period_seconds;*/
+	
 
     waitms(500); // Give PuTTy a chance to start before sending
 	printf("\x1b[2J"); // Clear screen using ANSI escape sequence.
@@ -290,6 +325,7 @@ void main (void)
 	InitPinADC(2, 4); // Configure P2.4 as analog input
 	InitPinADC(2, 5); // Configure P2.5 as analog input
     InitADC();
+    InitTimer0();
 
 	while(1)
 	{
@@ -299,6 +335,41 @@ void main (void)
 		v[2] = Volts_at_Pin(QFP32_MUX_P2_4);
 		v[3] = Volts_at_Pin(QFP32_MUX_P2_5);
 		printf ("V@P2.2=%7.5fV, V@P2.3=%7.5fV, V@P2.4=%7.5fV, V@P2.5=%7.5fV\r", v[0], v[1], v[2], v[3]);
+		//printf ("V@P2.2=%7.5fV\r",v[0]);
+		
+		/*period = halfPeriod();
+		period_seconds = (float)period * (12.0 / SYSCLK);
+		frequency = 1.0 / period_seconds;*/
+		
+		
+		//while (ZERO_CROSS_PIN == 1);
+		//while (ZERO_CROSS_PIN == 0);
+		
+			
+			printf("Test\n");
+			waitms(500);
+			printf("Test works\n");
+		
+		
+			period = halfPeriod();
+			//period_seconds = (float)period * (12.0 / SYSCLK);
+			//frequency = 1.0 / period_seconds;
+			frequency = (SYSCLK) / (12.0 * (float)period);
+			
+			printf("\nperiod: %f\n", (float)period);
+			printf("\nfrequency: %f hz\n", frequency);
+			
+			WaitQuarterPeriod(period);
+			
+			ADC_at_Pin(REF_peak); //p2.2
+			peak = Volts_at_Pin(REF_peak); //p2.2
+			printf("\npeak (ref): %f v\n", peak);
+			
+			/*delta_ticks = phaseDif();
+			phase_shift = calculatePhaseShift(period, delta_ticks);
+			printf("\nphase shift: %f °\n", phase_shift);*/
+		
+		
 		waitms(500);
 	 }  
 }	
