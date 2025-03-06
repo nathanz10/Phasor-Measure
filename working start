@@ -199,12 +199,24 @@ float Volts_at_Pin(unsigned char pin)
 	 return ((ADC_at_Pin(pin)*VDD)/0b_0011_1111_1111_1111);
 }
 
-void InitTimer0(void){
+/*void InitTimer0(void){
     //TMOD &= 0xF0;  // Clear Timer 0 mode bits
+     CKCON0 &= ~0x08; 
     TMOD&=0B_1111_0000; // Clear all the configuration bits of timer 0, but leave the bits of timer 1 unchanged
     TMOD|=0B_0000_0001; // Configure timer 0, but do nothing to timer 1
     TR0 = 0;       // Ensure Timer 0 is stopped initially
+}*/
+
+void InitTimer0(void)
+{
+    SFRPAGE = 0x00; // Ensure correct SFR page
+    TR0 = 0;        // Stop Timer 0
+    CKCON0 &= ~0x08; // Ensure Timer 0 uses SYSCLK / 12
+    TMOD = (TMOD & 0xF0) | 0x01; // Set Timer 0 as 16-bit mode
+    TH0 = 0; TL0 = 0; // Reset Timer 0
+    TF0 = 0; // Clear overflow flag
 }
+
 
 /*unsigned int measurePeriod(){
     TR0 = 0;  // Stop Timer 0
@@ -235,15 +247,18 @@ unsigned int halfPeriod(){
 	TH0=0; TL0=0; // Reset the timer
 	//printf("13\n");
 	
-	//printf("2\n");
+	
 	while (ZERO_CROSS_PIN==1); // Wait for the signal to be zero
 	while (ZERO_CROSS_PIN==0); // Wait for the signal to be one
 	
+	
+	
 	//printf("3\n");
 	TR0=1; // Start timing
+	printf("3\n");
 	while (ZERO_CROSS_PIN==1); // Wait for the signal to be zero
 	
-	//printf("4\n");
+	printf("4\n");
 	TR0=0; // Stop timer 0
 	// [TH0,TL0] is half the period in multiples of 12/CLK, so:
 	
